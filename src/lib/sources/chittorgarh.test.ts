@@ -7,6 +7,7 @@ import {
   findRecordObject,
   parseHumanDate,
   parseNum,
+  parsePositiveNum,
   readField,
   stripTags,
 } from "./chittorgarh";
@@ -184,5 +185,38 @@ describe("enclosingObject", () => {
 
   it("returns null when braces never balance", () => {
     expect(enclosingObject('{"a":1', 3)).toBeNull();
+  });
+});
+
+describe("parsePositiveNum — zero means 'not disclosed', never a real value", () => {
+  it("rejects the zero placeholders the source emits", () => {
+    // Real cases seen in production data: an upcoming IPO's issue size arrives as
+    // "0.00", and undisclosed anchor allocations arrive as 0. Storing those as 0
+    // turns "not disclosed" into "zero rupees"/"zero shares" in the UI.
+    for (const zero of ["0", "0.00", "0.0", 0, "₹0", "&#8377;0.00"]) {
+      expect(parsePositiveNum(zero)).toBeUndefined();
+    }
+  });
+
+  it("rejects negatives, which are never meaningful here", () => {
+    expect(parsePositiveNum("-5")).toBeUndefined();
+  });
+
+  it("still returns genuine positive values untouched", () => {
+    expect(parsePositiveNum("100.01")).toBe(100.01);
+    expect(parsePositiveNum("8,773,120")).toBe(8773120);
+    expect(parsePositiveNum("&#8377;114 per share")).toBe(114);
+    expect(parsePositiveNum("0.5")).toBe(0.5);
+  });
+
+  it("treats blanks as absent, like parseNum", () => {
+    for (const blank of ["", "  ", "-", null, undefined]) {
+      expect(parsePositiveNum(blank)).toBeUndefined();
+    }
+  });
+
+  it("differs from parseNum only on non-positive input", () => {
+    expect(parseNum("0")).toBe(0);
+    expect(parsePositiveNum("0")).toBeUndefined();
   });
 });

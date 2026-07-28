@@ -84,6 +84,20 @@ function isoDayOf(raw: unknown): IsoDate | undefined {
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined;
 }
 
+/**
+ * Parse a quantity or money amount where ZERO IS NOT A REAL VALUE.
+ *
+ * Chittorgarh emits "0" / "0.00" for fields it has not published yet — an upcoming
+ * IPO's issue size, an undisclosed anchor allocation. Storing that as 0 turns
+ * "not disclosed" into the factual claim "zero rupees" / "zero shares", which then
+ * renders as a real number in the UI instead of "—". No genuine IPO has a zero issue
+ * size, zero price or zero anchor allocation, so zero is always absence here.
+ */
+export function parsePositiveNum(raw: unknown): number | undefined {
+  const n = parseNum(raw);
+  return n === undefined || n <= 0 ? undefined : n;
+}
+
 /** Parse a number that may carry ₹, commas, or be an empty string. */
 export function parseNum(raw: unknown): number | undefined {
   if (raw === null || raw === undefined) return undefined;
@@ -290,8 +304,8 @@ export class ChittorgarhAdapter implements IpoSourceAdapter {
           issueOpenDate: isoDayOf(row["~Issue_Open_Date"]),
           issueCloseDate: isoDayOf(row["~IssueCloseDate"]),
           listingDate: isoDayOf(row["~ListingDate"]),
-          ipoPriceFinal: parseNum(row["Issue Price (Rs.)"]),
-          issueSizeCr: parseNum(row["Issue Amount (Rs.cr.)"]),
+          ipoPriceFinal: parsePositiveNum(row["Issue Price (Rs.)"]),
+          issueSizeCr: parsePositiveNum(row["Issue Amount (Rs.cr.)"]),
           source: this.name,
         },
       ];
@@ -325,7 +339,7 @@ export class ChittorgarhAdapter implements IpoSourceAdapter {
     // is our highest-confidence tier. If it is missing we return undefined and let the
     // sync layer apply its documented fallback — we never guess here.
     const allotmentDate = parseHumanDate(fieldOf(rec, "timetable_boa_dt"));
-    const anchorShares = parseNum(fieldOf(rec, "shares_offered_anchor_investor"));
+    const anchorShares = parsePositiveNum(fieldOf(rec, "shares_offered_anchor_investor"));
 
     return {
       sourceId: idOrSlugged,
@@ -341,11 +355,11 @@ export class ChittorgarhAdapter implements IpoSourceAdapter {
       listingDate:
         parseHumanDate(fieldOf(rec, "timetable_listing_dt")) ??
         parseHumanDate(fieldOf(rec, "il_ipo_listing_date")),
-      ipoPriceFinal: parseNum(fieldOf(rec, "issue_price_final")),
-      ipoPriceMin: parseNum(fieldOf(rec, "issue_price_lower")),
-      ipoPriceMax: parseNum(fieldOf(rec, "cap_price")),
-      issueSizeCr: parseNum(fieldOf(rec, "issue_total_amt")),
-      anchorValueCr: parseNum(fieldOf(rec, "anchor_portion_size")),
+      ipoPriceFinal: parsePositiveNum(fieldOf(rec, "issue_price_final")),
+      ipoPriceMin: parsePositiveNum(fieldOf(rec, "issue_price_lower")),
+      ipoPriceMax: parsePositiveNum(fieldOf(rec, "cap_price")),
+      issueSizeCr: parsePositiveNum(fieldOf(rec, "issue_total_amt")),
+      anchorValueCr: parsePositiveNum(fieldOf(rec, "anchor_portion_size")),
       anchorQtyShares: anchorShares !== undefined ? BigInt(Math.round(anchorShares)) : undefined,
       registrar: fieldOf(rec, "registrar_name"),
       source: this.name,

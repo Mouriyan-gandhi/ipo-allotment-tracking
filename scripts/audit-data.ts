@@ -99,14 +99,24 @@ async function main() {
 
   // 5. No placeholder values pretending to be data.
   console.log("\n5. Placeholder detection");
+  // Zero is never a real value for any of these: the source emits 0 to mean
+  // "not disclosed", and storing it asserts a fact ("zero shares unlock").
   const zeroPrice = await prisma.ipo.count({ where: { ipoPriceFinal: 0 } });
   const zeroIssue = await prisma.ipo.count({ where: { issueSizeCr: 0 } });
+  const zeroAnchorVal = await prisma.ipo.count({ where: { anchorValueCr: 0 } });
+  const zeroAnchorQty = await prisma.ipo.count({ where: { anchorQtyShares: BigInt(0) } });
+  const zeroEventQty = await prisma.lockinEvent.count({ where: { qtyShares: BigInt(0) } });
+  const zeroEventVal = await prisma.lockinEvent.count({ where: { valueCr: 0 } });
   const junkNames = await prisma.ipo.count({
     where: { OR: [{ companyName: "N/A" }, { companyName: "-" }, { companyName: "" }] },
   });
   const epoch = await prisma.ipo.count({ where: { allotmentDate: new Date("1970-01-01") } });
   check("no zero IPO prices posing as real", zeroPrice === 0, `found ${zeroPrice}`);
   check("no zero issue sizes posing as real", zeroIssue === 0, `found ${zeroIssue}`);
+  check("no zero anchor values posing as real", zeroAnchorVal === 0, `found ${zeroAnchorVal}`);
+  check("no zero anchor quantities posing as real", zeroAnchorQty === 0, `found ${zeroAnchorQty}`);
+  check("no zero event quantities posing as real", zeroEventQty === 0, `found ${zeroEventQty}`);
+  check("no zero event values posing as real", zeroEventVal === 0, `found ${zeroEventVal}`);
   check("no placeholder company names", junkNames === 0);
   check("no epoch/sentinel dates", epoch === 0);
 

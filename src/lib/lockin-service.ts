@@ -99,11 +99,19 @@ export async function recomputeLockinEvents(
   for (const e of events) {
     // Anchor tranches release 50% of the anchor allocation each; other event types
     // have no disclosed quantity, so they stay null rather than being guessed.
+    // A zero total means the source did not disclose it, so half of it is still
+    // unknown — never 0, which would assert that no shares unlock.
     const isAnchor = e.eventType === "ANCHOR_T1" || e.eventType === "ANCHOR_T2";
-    const qtyShares =
-      isAnchor && ipo.anchorQtyShares !== null ? ipo.anchorQtyShares / BigInt(2) : null;
-    const valueCr =
-      isAnchor && ipo.anchorValueCr !== null ? Number(ipo.anchorValueCr) / 2 : null;
+    const anchorQty = ipo.anchorQtyShares !== null && ipo.anchorQtyShares > BigInt(0)
+      ? ipo.anchorQtyShares
+      : null;
+    const anchorValue =
+      ipo.anchorValueCr !== null && Number(ipo.anchorValueCr) > 0
+        ? Number(ipo.anchorValueCr)
+        : null;
+
+    const qtyShares = isAnchor && anchorQty !== null ? anchorQty / BigInt(2) : null;
+    const valueCr = isAnchor && anchorValue !== null ? anchorValue / 2 : null;
 
     await prisma.lockinEvent.upsert({
       where: { ipoId_eventType: { ipoId, eventType: e.eventType } },
