@@ -407,7 +407,15 @@ function RowDetail({ row }: { row: IpoRow }) {
       </div>
 
       <div>
-        <h3 className="mb-2 text-[11px] uppercase tracking-wide text-fg-dim">IPO details</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-[11px] uppercase tracking-wide text-fg-dim">IPO details</h3>
+          <a
+            href={`/edit/${row.id}`}
+            className="rounded-md border border-border-strong px-2 py-0.5 text-[11px] text-fg-muted hover:bg-surface-2 hover:text-fg"
+          >
+            Edit
+          </a>
+        </div>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <Field label="Board" value={row.board} />
           <Field label="ISIN" value={row.isin ?? DASH} />
