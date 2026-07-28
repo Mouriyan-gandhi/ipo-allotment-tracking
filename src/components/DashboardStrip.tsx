@@ -22,15 +22,25 @@ export function DashboardStrip({ rows }: { rows: IpoRow[] }) {
     ) as Record<(typeof HORIZON_WINDOWS)[number], number>;
 
     // "This month" = remainder of the current calendar month, in IST civil dates.
+    // Comparing yyyy-MM-dd strings against a -31 bound is a safe upper bound for
+    // every month length, since no real date in the month sorts above it.
     const now = new Date();
     const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-31`;
-    const anchorValueThisMonth = upcoming
-      .filter((e) => e.tradingExpiry <= monthEnd && e.valueCr !== null)
-      .reduce((sum, e) => sum + (e.valueCr ?? 0), 0);
+    const thisMonth = upcoming.filter((e) => e.tradingExpiry <= monthEnd);
+    const withValue = thisMonth.filter((e) => e.valueCr !== null);
 
-    const hasAnchorValue = upcoming.some((e) => e.tradingExpiry <= monthEnd && e.valueCr !== null);
+    // Only anchor tranches carry a disclosed value; pre-IPO and promoter events have
+    // no published quantity, so they can never contribute to this total. Reporting
+    // the contributing count keeps the figure from reading as a complete total.
+    const anchorValueThisMonth = withValue.reduce((sum, e) => sum + (e.valueCr as number), 0);
 
-    return { upcoming, counts, anchorValueThisMonth, hasAnchorValue };
+    return {
+      upcoming,
+      counts,
+      anchorValueThisMonth,
+      valuedCount: withValue.length,
+      monthCount: thisMonth.length,
+    };
   }, [rows]);
 
   return (
@@ -55,10 +65,17 @@ export function DashboardStrip({ rows }: { rows: IpoRow[] }) {
           Anchor value this month
         </div>
         <div className="mt-0.5 text-2xl font-semibold tnum">
-          {stats.hasAnchorValue ? fmtCr(stats.anchorValueThisMonth) : "—"}
+          {stats.valuedCount > 0 ? fmtCr(stats.anchorValueThisMonth) : "—"}
         </div>
-        <div className="text-[11px] text-fg-dim">
-          {stats.hasAnchorValue ? "disclosed anchor portions only" : "no disclosed anchor value"}
+        <div
+          className="text-[11px] text-fg-dim"
+          title="Only anchor tranches have a disclosed value; other event types publish no quantity."
+        >
+          {stats.valuedCount > 0
+            ? `from ${stats.valuedCount} of ${stats.monthCount} event${stats.monthCount === 1 ? "" : "s"} with disclosed value`
+            : stats.monthCount > 0
+              ? `no disclosed value on ${stats.monthCount} event${stats.monthCount === 1 ? "" : "s"}`
+              : "no unlocks left this month"}
         </div>
       </div>
 
