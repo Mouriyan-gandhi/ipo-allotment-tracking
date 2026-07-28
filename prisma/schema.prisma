@@ -49,11 +49,24 @@ enum AlertChannel {
 }
 
 model Ipo {
-  id                  String               @id @default(cuid())
-  symbol              String
-  companyName         String
-  board               Board
-  isin                String?
+  id String @id @default(cuid())
+
+  // DEVIATION FROM SPEC (forced by real data): `symbol` was specified as required
+  // with @@unique([symbol, board]) as the upsert key. In practice an NSE/BSE symbol
+  // is not assigned until listing, so ~70% of freshly-ingested IPOs have none — and
+  // those are precisely the rows with upcoming unlocks. Storing a placeholder would
+  // be fabricated data, so symbol is nullable and the sync identity is
+  // (source, sourceRef) instead. @@unique([symbol, board]) is retained for the rows
+  // that do have a symbol; Postgres permits repeated NULLs in a unique index, so
+  // symbol-less rows coexist without collisions.
+  symbol      String?
+  companyName String
+  board       Board
+  isin        String?
+
+  /// Stable per-source identifier (e.g. Chittorgarh's numeric IPO id). Sync upserts
+  /// on (source, sourceRef) because it is present from the first sighting onward.
+  sourceRef String?
 
   allotmentDate       DateTime?
   allotmentDateSource AllotmentDateSource?
@@ -90,14 +103,16 @@ model Ipo {
   // overwrite a field whose key is true here.
   manualOverrides     Json                 @default("{}")
 
-  source              String?
-  lastSyncedAt        DateTime?
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+  /// Adapter name that produced this row ("chittorgarh"), or "manual" for hand entry.
+  source       String    @default("manual")
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  lockinEvents        LockinEvent[]
+  lockinEvents LockinEvent[]
 
   @@unique([symbol, board])
+  @@unique([source, sourceRef])
 }
 
 model LockinEvent {
