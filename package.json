@@ -14,7 +14,9 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "seed": "tsx prisma/seed.ts",
-    "snapshot": "tsx scripts/snapshot-chittorgarh.ts"
+    "snapshot": "tsx scripts/snapshot-chittorgarh.ts",
+    "backfill": "tsx scripts/backfill.ts",
+    "audit": "tsx scripts/audit-data.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

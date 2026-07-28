@@ -75,6 +75,14 @@ export function defaultAdapters(): IpoSourceAdapter[] {
 export function resolveAllotmentDate(
   detail: RawIpoDetail,
   holidays: Set<string>,
+  /**
+   * Whether tier 3 (listing date - 2 trading days) may be used. Defaults to FALSE:
+   * that tier is an inference, not published data, and every lock-in date derives
+   * from it. With it off, an IPO whose allotment date the source has not published
+   * is stored with allotmentDate = null and simply has no computed events, rather
+   * than carrying dates built on a guess.
+   */
+  allowEstimated = false,
 ): { date: Date; source: "BASIS_OF_ALLOTMENT" | "ANCHOR_CIRCULAR" | "ESTIMATED" } | null {
   if (detail.allotmentDate) {
     return {
@@ -82,6 +90,7 @@ export function resolveAllotmentDate(
       source: detail.allotmentDateSource ?? "BASIS_OF_ALLOTMENT",
     };
   }
+  if (!allowEstimated) return null;
   if (!detail.listingDate) return null;
 
   // Walk back two trading days from listing.
@@ -122,6 +131,11 @@ export interface RunSyncOptions {
   adapters?: IpoSourceAdapter[];
   /** Cap detail fetches per run so a scheduled job stays polite. */
   maxDetailFetches?: number;
+  /**
+   * Allow the ESTIMATED allotment-date tier (listing - 2 trading days).
+   * Off by default: only dates the source actually publishes are stored.
+   */
+  allowEstimatedAllotment?: boolean;
 }
 
 export async function runSync(
@@ -222,9 +236,20 @@ export async function runSync(
         issueSizeCr: detail.issueSizeCr ?? row.issueSizeCr,
       };
 
-      const resolved = resolveAllotmentDate(merged, ctx.holidays);
+      const resolved = resolveAllotmentDate(
+        merged,
+        ctx.holidays,
+        opts.allowEstimatedAllotment ?? false,
+      );
       const allotIso = resolved ? asIso(resolved.date) : null;
       result.warnings.push(...validateRow(merged, allotIso));
+      if (!resolved) {
+        // Recorded, not hidden: the row is still stored so it appears in the UI,
+        // but with no allotment date and therefore no computed lock-in dates.
+        result.warnings.push(
+          `${merged.symbol ?? merged.companyName}: source has not published a basis-of-allotment date — stored without lock-in dates`,
+        );
+      }
 
       await upsertIpo(prisma, adapter.name, merged, resolved, ctx, result, todayIso);
     }

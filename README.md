@@ -41,6 +41,8 @@ Sign in with the value you set for `APP_PASSWORD`.
 | `npm run db:studio` | Browse the data in Prisma Studio |
 | `npm run seed` | Seed holidays, alert rules, settings and IPOs (idempotent) |
 | `npm run snapshot` | Re-fetch `prisma/seed-data.json` from Chittorgarh |
+| `npm run backfill` | Ingest a full year (or more) without the per-run fetch cap |
+| `npm run audit` | Verify no displayed value is inferred or fabricated |
 
 ---
 
@@ -144,6 +146,46 @@ Never guessed silently:
 1. Explicit basis-of-allotment → `BASIS_OF_ALLOTMENT`
 2. Anchor circular date → `ANCHOR_CIRCULAR`
 3. Listing date − 2 trading days → `ESTIMATED`, and the UI shows a ⚠ on that row
+
+**Tier 3 is disabled by default.** It is an inference rather than published data, and
+every lock-in date descends from the allotment date, so a wrong guess there silently
+corrupts four dates. With it off, an IPO whose allotment date the source has not
+published is stored with `allotmentDate = null`, appears in the UI, and simply has no
+computed lock-in dates. Enable per run with `allowEstimatedAllotment: true` if you
+want the estimate instead of a gap.
+
+### Verifying provenance
+
+`npm run audit` checks that nothing displayed is invented: no inferred allotment
+dates, every IPO attributable to a named source, every lock-in event descended from a
+verified date, internally consistent date sequences, and no placeholder values (zero
+prices, epoch dates, `"N/A"` names) posing as real data. It exits non-zero on failure.
+
+It also prints which values are **derived rather than fetched**, so they are never
+mistaken for source data:
+
+| Value | Derived from |
+| --- | --- |
+| Lock-in expiry dates | allotment date + `lockinRules` durations |
+| Trading-day expiry | raw expiry rolled off NSE holidays/weekends |
+| Anchor tranche quantity/value | disclosed anchor total ÷ 2 (the SEBI 50-50 split) |
+| Days remaining | today (IST) vs stored expiry |
+
+Everything else is stored exactly as the source published it, or left null.
+
+### Backfilling
+
+`npm run backfill` ingests every IPO the source lists for the requested years,
+bypassing the per-run politeness cap that the daily cron uses:
+
+```bash
+npm run backfill                        # current + previous calendar year
+npm run backfill -- --years 2026,2025
+npm run backfill -- --max 500
+```
+
+It runs as a script rather than through `/api/sync` because it takes minutes and
+would exceed a serverless function's time limit. Requests are still rate limited.
 
 ### Cross-checking
 
