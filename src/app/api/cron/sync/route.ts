@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { runSync } from "@/lib/sync";
+import { generateNotifications } from "@/lib/notifications";
+import { timingSafeEqual } from "@/lib/auth";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+/**
+ * Daily scheduled ingestion. Called by Vercel Cron at 02:30 UTC (08:00 IST).
+ *
+ * proxy.ts lets /api/cron through without a session, so this route must
+ * authenticate itself: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
+ */
+function authorise(request: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const header = request.headers.get("authorization") ?? "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+  return provided.length > 0 && timingSafeEqual(provided, secret);
+}
+
+async function handle(request: Request) {
+  if (!authorise(request)) {
+    return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+  }
+  try {
+    const result = await runSync(prisma, { triggeredBy: "cron" });
+    const notifications = await generateNotifications(prisma);
+    return NextResponse.json({ ...result, notificationsCreated: notifications });
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message, status: "FAILED" }, { status: 500 });
+  }
+}
+
+// Vercel Cron issues GET; POST is accepted for manual curl testing.
+export const GET = handle;
+export const POST = handle;

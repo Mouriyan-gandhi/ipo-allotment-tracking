@@ -101,7 +101,7 @@ export async function recomputeLockinEvents(
     // have no disclosed quantity, so they stay null rather than being guessed.
     const isAnchor = e.eventType === "ANCHOR_T1" || e.eventType === "ANCHOR_T2";
     const qtyShares =
-      isAnchor && ipo.anchorQtyShares !== null ? ipo.anchorQtyShares / 2n : null;
+      isAnchor && ipo.anchorQtyShares !== null ? ipo.anchorQtyShares / BigInt(2) : null;
     const valueCr =
       isAnchor && ipo.anchorValueCr !== null ? Number(ipo.anchorValueCr) / 2 : null;
 

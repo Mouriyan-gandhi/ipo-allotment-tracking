@@ -12,8 +12,8 @@ export default defineConfig({
   datasource: {
     // CLI work (migrate/push/studio) must not go through the transaction pooler, and
     // the Rust engine wants sslmode=require — both of which DIRECT_URL provides.
-    // DATABASE_URL carries sslmode=no-verify for the Node pg driver and would fail here.
+    // DATABASE_URL carries sslmode=no-verify for the Node pg driver and would fail
+    // here, so the direct URL is used for all CLI operations.
     url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
-    directUrl: process.env["DIRECT_URL"],
   },
 });
