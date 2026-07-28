@@ -62,14 +62,16 @@ export function IpoTable({ rows, title }: { rows: IpoRow[]; title: string }) {
   const toggle = (id: string) =>
     setOpen((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
   const stamp = new Date().toISOString().slice(0, 10);
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
   return (
-    <section>
+    <section aria-label={`${title} IPO lock-in table`}>
       {/* ---- filter bar ---- */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
@@ -154,13 +156,15 @@ export function IpoTable({ rows, title }: { rows: IpoRow[]; title: string }) {
             {filtered.length} of {rows.length}
           </span>
           <button
-            onClick={() => downloadFile(`ipo-lockin-${stamp}.csv`, toCsv(filtered), "text/csv")}
+            onClick={() => downloadFile(`ipo-lockin-${slug}-${stamp}.csv`, toCsv(filtered), "text/csv")}
             className="rounded-md border border-border-strong px-2 py-1 text-xs hover:bg-surface-2"
           >
             CSV
           </button>
           <button
-            onClick={() => downloadFile(`ipo-lockin-${stamp}.ics`, toIcs(filtered), "text/calendar")}
+            onClick={() =>
+              downloadFile(`ipo-lockin-${slug}-${stamp}.ics`, toIcs(filtered), "text/calendar")
+            }
             className="rounded-md border border-border-strong px-2 py-1 text-xs hover:bg-surface-2"
           >
             .ics
