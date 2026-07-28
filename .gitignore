@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template must be committed: the README tells you to copy it.
+# It contains placeholders only, never real credentials.
+!.env.example
 
 # vercel
 .vercel
