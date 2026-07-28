@@ -1,0 +1,170 @@
+// Indian IPO Lock-in Tracker — Prisma schema
+//
+// Adapted for Prisma 7:
+//   - generator uses the new `prisma-client` provider (outputs TS client into the
+//     project at src/generated/prisma, imported as `@/generated/prisma/client`)
+//   - datasource keeps `url` + `directUrl` via env() for Supabase (pooled 6543 for
+//     the app, session-pooler 5432 for migrations). Env is loaded by prisma.config.ts.
+//
+// This is the single database schema; SQLite is intentionally NOT used because the
+// model relies on Postgres-native arrays (String[]), enums, and Json.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7: connection URLs (url + directUrl) live in prisma.config.ts, not here.
+  provider = "postgresql"
+}
+
+enum Board {
+  MAINBOARD
+  SME
+}
+
+enum AllotmentDateSource {
+  BASIS_OF_ALLOTMENT
+  ANCHOR_CIRCULAR
+  ESTIMATED
+}
+
+enum LockinEventType {
+  ANCHOR_T1
+  ANCHOR_T2
+  PRE_IPO
+  PROMOTER
+}
+
+enum SyncStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+enum AlertChannel {
+  IN_APP
+  EMAIL
+}
+
+model Ipo {
+  id                  String               @id @default(cuid())
+  symbol              String
+  companyName         String
+  board               Board
+  isin                String?
+
+  allotmentDate       DateTime?
+  allotmentDateSource AllotmentDateSource?
+  listingDate         DateTime?
+  issueOpenDate       DateTime?
+  issueCloseDate      DateTime?
+
+  ipoPriceMin         Decimal?             @db.Decimal(10, 2)
+  ipoPriceMax         Decimal?             @db.Decimal(10, 2)
+  ipoPriceFinal       Decimal?             @db.Decimal(10, 2)
+  listingPrice        Decimal?             @db.Decimal(10, 2)
+  cmp                 Decimal?             @db.Decimal(10, 2)
+  cmpUpdatedAt        DateTime?
+
+  issueSizeCr         Decimal?             @db.Decimal(12, 2)
+  anchorQtyShares     BigInt?
+  anchorValueCr       Decimal?             @db.Decimal(12, 2)
+
+  leadManagers        String[]
+  registrar           String?
+
+  subQib              Decimal?             @db.Decimal(6, 2)
+  subNii              Decimal?             @db.Decimal(6, 2)
+  subRetail           Decimal?             @db.Decimal(6, 2)
+  subOverall          Decimal?             @db.Decimal(6, 2)
+
+  notes               String?
+
+  // Per-IPO override of lockinRules (partial BoardLockinRules JSON). Highest priority
+  // in resolveLockinRules(). Null = use board/settings defaults.
+  lockinRuleOverride  Json?
+
+  // Map of fieldName -> true for fields the user has hand-edited. Sync must never
+  // overwrite a field whose key is true here.
+  manualOverrides     Json                 @default("{}")
+
+  source              String?
+  lastSyncedAt        DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  lockinEvents        LockinEvent[]
+
+  @@unique([symbol, board])
+}
+
+model LockinEvent {
+  id                   String          @id @default(cuid())
+  ipoId                String
+  ipo                  Ipo             @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+
+  eventType            LockinEventType
+
+  // rawExpiryDate = pure calendar computation from allotment + rule.
+  // tradingDayExpiryDate = rawExpiryDate rolled forward off weekends/holidays.
+  rawExpiryDate        DateTime
+  tradingDayExpiryDate DateTime
+  isHolidayShifted     Boolean         @default(false)
+
+  qtyShares            BigInt?
+  valueCr              Decimal?        @db.Decimal(12, 2)
+
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@unique([ipoId, eventType])
+}
+
+model TradingHoliday {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  description String?
+  exchange    String   @default("NSE")
+
+  @@unique([date, exchange])
+}
+
+model SyncRun {
+  id          String     @id @default(cuid())
+  startedAt   DateTime   @default(now())
+  finishedAt  DateTime?
+  source      String
+  status      SyncStatus
+  rowsAdded   Int        @default(0)
+  rowsUpdated Int        @default(0)
+  errors      Json?
+  triggeredBy String
+}
+
+model AlertRule {
+  id         String          @id @default(cuid())
+  eventType  LockinEventType
+  offsetDays Int
+  channel    AlertChannel
+  enabled    Boolean         @default(true)
+
+  @@unique([eventType, offsetDays, channel])
+}
+
+model Notification {
+  id           String          @id @default(cuid())
+  ipoId        String
+  eventType    LockinEventType
+  message      String
+  scheduledFor DateTime
+  sentAt       DateTime?
+  readAt       DateTime?
+  createdAt    DateTime        @default(now())
+}
+
+model Settings {
+  key   String @id
+  value Json
+}
