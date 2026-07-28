@@ -3,11 +3,12 @@ import { getSyncStatus, getUnreadNotificationCount } from "@/lib/queries";
 import { fmtRelative } from "@/lib/format";
 import { SyncNowButton } from "./SyncNowButton";
 
+// Calendar is the landing view, so it leads and points at "/".
 const TABS = [
+  { href: "/", label: "Calendar" },
   { href: "/mainboard", label: "Mainboard" },
   { href: "/sme", label: "SME" },
   { href: "/all", label: "All" },
-  { href: "/calendar", label: "Calendar" },
 ];
 
 const UTILITY = [
@@ -29,7 +30,7 @@ export async function Shell({
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-border bg-bg/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1800px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5">
-          <Link href="/mainboard" className="text-sm font-semibold tracking-tight">
+          <Link href="/" className="text-sm font-semibold tracking-tight">
             IPO Lock-in Tracker
           </Link>
 

@@ -23,15 +23,31 @@ interface Chip {
   valueCr: number | null;
 }
 
+type BoardFilter = "ALL" | "MAINBOARD" | "SME";
+const BOARD_FILTERS: { key: BoardFilter; label: string }[] = [
+  { key: "ALL", label: "All" },
+  { key: "MAINBOARD", label: "Mainboard" },
+  { key: "SME", label: "SME" },
+];
+
 export function CalendarView({ rows }: { rows: IpoRow[] }) {
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
   const [selected, setSelected] = useState<IpoRow | null>(null);
+  const [board, setBoard] = useState<BoardFilter>("ALL");
+  const [types, setTypes] = useState<Set<LockinEventType>>(new Set());
+
+  const visible = useMemo(
+    () => (board === "ALL" ? rows : rows.filter((r) => r.board === board)),
+    [rows, board],
+  );
 
   const byDate = useMemo(() => {
     const map = new Map<string, Chip[]>();
-    for (const ipo of rows) {
+    for (const ipo of visible) {
       for (const e of ipo.events) {
+        // An empty type filter means "show everything" rather than "show nothing".
+        if (types.size > 0 && !types.has(e.eventType)) continue;
         const list = map.get(e.tradingExpiry) ?? [];
         list.push({
           ipo,
@@ -44,7 +60,22 @@ export function CalendarView({ rows }: { rows: IpoRow[] }) {
       }
     }
     return map;
-  }, [rows]);
+  }, [visible, types]);
+
+  const monthCount = useMemo(() => {
+    const prefix = `${cursor.year}-${String(cursor.month).padStart(2, "0")}`;
+    let n = 0;
+    for (const [iso, chips] of byDate) if (iso.startsWith(prefix)) n += chips.length;
+    return n;
+  }, [byDate, cursor]);
+
+  const toggleType = (t: LockinEventType) =>
+    setTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
 
   // Build a Monday-first grid covering the whole month.
   const cells = useMemo(() => {
@@ -97,12 +128,52 @@ export function CalendarView({ rows }: { rows: IpoRow[] }) {
           Today
         </button>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2 text-[11px]">
-          {(Object.keys(EVENT_COLOURS) as LockinEventType[]).map((t) => (
-            <span key={t} className={`rounded border px-1.5 py-0.5 ${EVENT_COLOURS[t]}`}>
-              {eventTypeMeta[t].short}
-            </span>
+        {/* Board filter */}
+        <div className="flex items-center rounded-md border border-border-strong bg-surface p-0.5">
+          {BOARD_FILTERS.map((b) => (
+            <button
+              key={b.key}
+              onClick={() => setBoard(b.key)}
+              aria-pressed={board === b.key}
+              className={`rounded px-2 py-1 text-xs transition-colors ${
+                board === b.key ? "bg-accent text-black" : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {b.label}
+            </button>
           ))}
+        </div>
+
+        <span className="text-[11px] text-fg-dim tnum">
+          {monthCount} event{monthCount === 1 ? "" : "s"} this month
+        </span>
+
+        {/* Event-type legend doubles as a filter. */}
+        <div className="ml-auto flex flex-wrap items-center gap-1.5 text-[11px]">
+          {(Object.keys(EVENT_COLOURS) as LockinEventType[]).map((t) => {
+            const on = types.size === 0 || types.has(t);
+            return (
+              <button
+                key={t}
+                onClick={() => toggleType(t)}
+                aria-pressed={types.has(t)}
+                title="Click to filter by this event type"
+                className={`rounded border px-1.5 py-0.5 transition-opacity ${EVENT_COLOURS[t]} ${
+                  on ? "" : "opacity-30"
+                }`}
+              >
+                {eventTypeMeta[t].short}
+              </button>
+            );
+          })}
+          {types.size > 0 && (
+            <button
+              onClick={() => setTypes(new Set())}
+              className="rounded border border-border-strong px-1.5 py-0.5 text-fg-dim hover:text-fg"
+            >
+              clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -138,12 +209,18 @@ export function CalendarView({ rows }: { rows: IpoRow[] }) {
                         <button
                           key={j}
                           onClick={() => setSelected(c.ipo)}
-                          title={`${c.ipo.companyName} — ${eventTypeMeta[c.eventType].label}${
+                          title={`${c.ipo.companyName} (${c.ipo.board}) — ${eventTypeMeta[c.eventType].label}${
                             c.isHolidayShifted ? " (rolled to next trading day)" : ""
                           }`}
-                          className={`block w-full truncate rounded border px-1 py-0.5 text-left text-[10px] transition-opacity hover:opacity-80 ${EVENT_COLOURS[c.eventType]}`}
+                          className={`flex w-full items-center gap-1 rounded border px-1 py-0.5 text-left text-[10px] transition-opacity hover:opacity-80 ${EVENT_COLOURS[c.eventType]}`}
                         >
-                          {c.ipo.symbol ?? c.ipo.companyName}
+                          {/* Board marker matters most in the combined "All" view. */}
+                          {board === "ALL" && (
+                            <span className="shrink-0 opacity-60">
+                              {c.ipo.board === "SME" ? "S" : "M"}
+                            </span>
+                          )}
+                          <span className="truncate">{c.ipo.symbol ?? c.ipo.companyName}</span>
                         </button>
                       ))}
                       {chips.length > 4 && (

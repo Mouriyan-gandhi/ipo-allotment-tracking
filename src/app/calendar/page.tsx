@@ -1,14 +1,7 @@
-import { Shell } from "@/components/Shell";
-import { CalendarView } from "@/components/CalendarView";
-import { getIpos } from "@/lib/queries";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function CalendarPage() {
-  const rows = await getIpos();
-  return (
-    <Shell active="/calendar">
-      <CalendarView rows={rows} />
-    </Shell>
-  );
+// The calendar moved to "/" (it is the landing view). Kept so older links,
+// bookmarks and the login `?next=` parameter still resolve.
+export default function CalendarRedirect() {
+  redirect("/");
 }

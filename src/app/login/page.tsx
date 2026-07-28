@@ -26,7 +26,7 @@ function LoginForm() {
         setError(body.error ?? "Sign-in failed");
         return;
       }
-      router.replace(params.get("next") || "/mainboard");
+      router.replace(params.get("next") || "/");
       router.refresh();
     } catch {
       setError("Network error — is the server running?");
