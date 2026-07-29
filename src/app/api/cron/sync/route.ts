@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { runSync } from "@/lib/sync";
 import { generateNotifications } from "@/lib/notifications";
+import { ChittorgarhAdapter } from "@/lib/sources/chittorgarh";
 import { timingSafeEqual } from "@/lib/auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 /**
  * Daily scheduled ingestion. Called by Vercel Cron at 02:30 UTC (08:00 IST).
@@ -26,7 +27,14 @@ async function handle(request: Request) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
   try {
-    const result = await runSync(prisma, { triggeredBy: "cron" });
+    // Bounded so the run finishes inside the serverless timeout: only the current
+    // calendar year (new IPOs can only appear there), and a small detail budget.
+    // Historical years are a one-off `npm run backfill`, not daily work.
+    const result = await runSync(prisma, {
+      triggeredBy: "cron",
+      adapters: [new ChittorgarhAdapter([new Date().getUTCFullYear()])],
+      maxDetailFetches: 12,
+    });
     const notifications = await generateNotifications(prisma);
     return NextResponse.json({ ...result, notificationsCreated: notifications });
   } catch (err) {

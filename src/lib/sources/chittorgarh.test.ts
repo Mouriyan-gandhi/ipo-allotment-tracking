@@ -261,7 +261,7 @@ describe("mergeRecords — two reports describing the same IPO", () => {
 
   it("never lets an absent value overwrite a known one", () => {
     const blank = { ...list, symbol: undefined, isin: "", ipoPriceFinal: undefined };
-    const m = mergeRecords(list, blank as typeof list);
+    const m = mergeRecords(list, blank as unknown as typeof list);
     expect(m.symbol).toBe("MODERN");
     expect(m.isin).toBe("INE0XYZ01011");
     expect(m.ipoPriceFinal).toBe(74);

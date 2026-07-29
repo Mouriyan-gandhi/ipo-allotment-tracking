@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "// build": "src/generated/prisma is gitignored, so the client must be generated on the deploy host or the build cannot resolve @/generated/prisma/client",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

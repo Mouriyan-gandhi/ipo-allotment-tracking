@@ -181,7 +181,13 @@ export async function runSync(
     // Detail pages are one request each, so this keeps a daily run to a handful.
     const existing = await prisma.ipo.findMany({
       where: { source: adapter.name },
-      select: { sourceRef: true, allotmentDate: true, listingDate: true },
+      select: {
+        sourceRef: true,
+        allotmentDate: true,
+        listingDate: true,
+        issueOpenDate: true,
+        issueCloseDate: true,
+      },
     });
     const known = new Map(existing.map((e) => [e.sourceRef, e]));
 
@@ -192,6 +198,22 @@ export async function runSync(
     // a single detail request. This is what makes a multi-year backfill tractable.
     for (const row of listing) {
       if (!row.allotmentDate) continue;
+
+      // Skip rows the listing describes exactly as they are already stored. Without
+      // this, every daily run re-upserts the entire history (500+ rows, each with its
+      // lock-in events), which cannot finish inside a serverless timeout. New and
+      // changed rows still flow through untouched.
+      const prior = known.get(row.sourceId);
+      if (
+        prior &&
+        asIso(prior.allotmentDate) === (row.allotmentDate ?? null) &&
+        asIso(prior.listingDate) === (row.listingDate ?? null) &&
+        asIso(prior.issueOpenDate) === (row.issueOpenDate ?? null) &&
+        asIso(prior.issueCloseDate) === (row.issueCloseDate ?? null)
+      ) {
+        continue;
+      }
+
       const resolved = resolveAllotmentDate(
         row as RawIpoDetail,
         ctx.holidays,
