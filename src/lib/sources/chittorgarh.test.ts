@@ -7,6 +7,7 @@ import {
   findRecordObject,
   parseHumanDate,
   parseNum,
+  mergeRecords,
   parsePositiveNum,
   readField,
   stripTags,
@@ -218,5 +219,56 @@ describe("parsePositiveNum — zero means 'not disclosed', never a real value", 
   it("differs from parseNum only on non-positive input", () => {
     expect(parseNum("0")).toBe(0);
     expect(parsePositiveNum("0")).toBeUndefined();
+  });
+});
+
+describe("mergeRecords — two reports describing the same IPO", () => {
+  // Report 118 (timetable) supplies the allotment date; report 82 supplies symbol,
+  // ISIN and price. A last-write-wins merge would discard whichever arrived first.
+  const timetable = {
+    sourceId: "2276",
+    companyName: "Modern Diagnostic & Research Centre Ltd.",
+    board: "SME" as const,
+    allotmentDate: "2026-01-05",
+    allotmentDateSource: "BASIS_OF_ALLOTMENT" as const,
+    listingDate: "2026-01-07",
+    source: "chittorgarh",
+  };
+  const list = {
+    sourceId: "2276",
+    companyName: "Modern Diagnostic & Research Centre Ltd.",
+    board: "SME" as const,
+    symbol: "MODERN",
+    isin: "INE0XYZ01011",
+    ipoPriceFinal: 74,
+    source: "chittorgarh",
+  };
+
+  it("keeps fields from both sides", () => {
+    const m = mergeRecords(timetable, list);
+    expect(m.allotmentDate).toBe("2026-01-05");
+    expect(m.symbol).toBe("MODERN");
+    expect(m.isin).toBe("INE0XYZ01011");
+    expect(m.ipoPriceFinal).toBe(74);
+  });
+
+  it("is order independent for complementary fields", () => {
+    const a = mergeRecords(timetable, list);
+    const b = mergeRecords(list, timetable);
+    expect(a.allotmentDate).toBe(b.allotmentDate);
+    expect(a.symbol).toBe(b.symbol);
+  });
+
+  it("never lets an absent value overwrite a known one", () => {
+    const blank = { ...list, symbol: undefined, isin: "", ipoPriceFinal: undefined };
+    const m = mergeRecords(list, blank as typeof list);
+    expect(m.symbol).toBe("MODERN");
+    expect(m.isin).toBe("INE0XYZ01011");
+    expect(m.ipoPriceFinal).toBe(74);
+  });
+
+  it("keeps the first side's value when both are populated", () => {
+    const m = mergeRecords(list, { ...list, symbol: "OTHER" });
+    expect(m.symbol).toBe("MODERN");
   });
 });

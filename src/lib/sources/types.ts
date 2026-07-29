@@ -33,6 +33,13 @@ export interface RawIpoRecord {
   listingDate?: IsoDate;
   ipoPriceFinal?: number;
   issueSizeCr?: number;
+  /**
+   * Some listings publish the basis-of-allotment date directly. When present the
+   * sync can materialise lock-in dates without a per-IPO detail request, which is
+   * what makes a multi-year backfill tractable.
+   */
+  allotmentDate?: IsoDate;
+  allotmentDateSource?: AllotmentDateSource;
   /** Name of the adapter that produced this row. */
   source: string;
 }

@@ -27,7 +27,14 @@ import type { Board } from "../lockin-rules";
 import { politeFetchJson, politeFetchText } from "./http";
 import type { IpoSourceAdapter, IsoDate, RawIpoDetail, RawIpoRecord } from "./types";
 
+// Report 82 = "IPO in India list". Carries symbol/ISIN/price but NO allotment date.
 const LIST_BASE = "https://webnodejs.chittorgarh.com/cloud/report/data-read/82/1/1";
+
+// Report 118 = "IPO list by timetable and lot size". Carries the basis-of-allotment
+// date (~Timetable_BOA_dt) for every IPO in one request, and covers past years that
+// report 82 does not return. This is the primary listing: it makes a multi-year
+// backfill one request per (year, board) instead of one request per IPO.
+const TIMETABLE_BASE = "https://webnodejs.chittorgarh.com/cloud/report/data-read/118/1/1";
 const SITE = "https://www.chittorgarh.com";
 const REFERER = { Referer: `${SITE}/` };
 
@@ -270,17 +277,67 @@ export class ChittorgarhAdapter implements IpoSourceAdapter {
     const out: RawIpoRecord[] = [];
     for (const board of ["MAINBOARD", "SME"] as const) {
       for (const year of this.years) {
+        // Timetable report first: it supplies allotment dates and covers past years.
+        try {
+          out.push(...(await this.fetchTimetableList(board, year)));
+        } catch (err) {
+          console.warn(`[chittorgarh] timetable ${board} ${year} failed:`, (err as Error).message);
+        }
+        // Report 82 adds symbol/ISIN/price for the same IPOs; merged by sourceId below.
         try {
           out.push(...(await this.fetchList(board, year)));
         } catch (err) {
-          // One board/year failing must not lose the rest of the run.
           console.warn(`[chittorgarh] list ${board} ${year} failed:`, (err as Error).message);
         }
       }
     }
-    // De-duplicate on sourceId, keeping the first (most recent year) occurrence.
-    const seen = new Set<string>();
-    return out.filter((r) => !seen.has(r.sourceId) && seen.add(r.sourceId));
+
+    // Merge duplicates by sourceId, filling gaps rather than letting the later row win:
+    // the two reports carry complementary fields for the same IPO.
+    const merged = new Map<string, RawIpoRecord>();
+    for (const row of out) {
+      const prior = merged.get(row.sourceId);
+      merged.set(row.sourceId, prior ? mergeRecords(prior, row) : row);
+    }
+    return [...merged.values()];
+  }
+
+  /**
+   * Report 118 — one request per (year, board), including the basis-of-allotment
+   * date. `year` is passed both in the path and as ?year= because the endpoint has
+   * been observed to honour the query parameter for historical years.
+   */
+  async fetchTimetableList(board: Board, year: number): Promise<RawIpoRecord[]> {
+    const url = `${TIMETABLE_BASE}/${year}/${fyLabel(year)}/0/${boardParam(board)}?year=${year}`;
+    const json = await politeFetchJson<ListResponse>(url, { headers: REFERER });
+    const rows = json.reportTableData ?? [];
+
+    return rows.flatMap((row): RawIpoRecord[] => {
+      const id = row["~id"];
+      const name = stripTags(String(row["Company"] ?? ""));
+      if (id === undefined || id === null || !name) return [];
+
+      // Only trust rows whose declared type matches the board we asked for.
+      const declared = String(row["Issue Type"] ?? "").toLowerCase();
+      if (declared && !declared.includes(board === "SME" ? "sme" : "main")) return [];
+
+      const allotmentDate = isoDayOf(row["~Timetable_BOA_dt"]);
+      return [
+        {
+          sourceId: String(id),
+          slug: (row["~urlrewrite_folder_name"] as string) || undefined,
+          companyName: name,
+          board,
+          issueOpenDate: isoDayOf(row["~Issue_Open_Date"]),
+          issueCloseDate: isoDayOf(row["~Issue_Close_Date"]),
+          listingDate: isoDayOf(row["~IPO_Listing_date"]),
+          // Published by the source, so it qualifies as the highest-confidence tier.
+          allotmentDate,
+          allotmentDateSource: allotmentDate ? "BASIS_OF_ALLOTMENT" : undefined,
+          source: this.name,
+        },
+      ];
+    });
   }
 
   async fetchList(board: Board, year: number): Promise<RawIpoRecord[]> {
@@ -370,4 +427,21 @@ export class ChittorgarhAdapter implements IpoSourceAdapter {
 function defaultYears(): number[] {
   const y = new Date().getUTCFullYear();
   return [y, y - 1];
+}
+
+/**
+ * Fill gaps in `a` from `b` without overwriting anything `a` already knows.
+ * The two Chittorgarh reports describe the same IPO with different columns, so a
+ * last-write-wins merge would discard whichever report was fetched first.
+ */
+export function mergeRecords(a: RawIpoRecord, b: RawIpoRecord): RawIpoRecord {
+  const out = { ...a } as unknown as Record<string, unknown>;
+  const from = b as unknown as Record<string, unknown>;
+  for (const key of Object.keys(from)) {
+    const incoming = from[key];
+    if (incoming === undefined || incoming === null || incoming === "") continue;
+    const current = out[key];
+    if (current === undefined || current === null || current === "") out[key] = incoming;
+  }
+  return out as unknown as RawIpoRecord;
 }

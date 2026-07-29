@@ -164,6 +164,8 @@ export async function runSync(
 
   const ctx: RecomputeContext = await buildRecomputeContext(prisma);
   let anySourceWorked = false;
+  // An IPO can be touched by both passes; count it once so Sync History stays honest.
+  const counted = new Set<string>();
 
   for (const adapter of adapters) {
     let listing;
@@ -184,10 +186,27 @@ export async function runSync(
     const known = new Map(existing.map((e) => [e.sourceRef, e]));
 
     const todayIso = keyOf(instantToCivil(new Date()));
+
+    // Pass 1 — persist everything the listing already gives us. The timetable report
+    // supplies the basis-of-allotment date, so lock-in dates materialise here without
+    // a single detail request. This is what makes a multi-year backfill tractable.
+    for (const row of listing) {
+      if (!row.allotmentDate) continue;
+      const resolved = resolveAllotmentDate(
+        row as RawIpoDetail,
+        ctx.holidays,
+        opts.allowEstimatedAllotment ?? false,
+      );
+      result.warnings.push(...validateRow(row as RawIpoDetail, resolved ? asIso(resolved.date) : null));
+      await upsertIpo(prisma, adapter.name, row as RawIpoDetail, resolved, ctx, result, todayIso, counted);
+    }
+
+    // Pass 2 — spend the detail budget on enrichment (symbol, price, anchor, ISIN)
+    // and on rows still missing an allotment date, newest first.
     const needsDetail = listing.filter((row) => {
       const prior = known.get(row.sourceId);
       if (!prior) return true; // never seen
-      if (!prior.allotmentDate) return true; // still missing the critical field
+      if (!prior.allotmentDate && !row.allotmentDate) return true;
       // Recheck recently-listed IPOs; older ones are settled.
       const listed = prior.listingDate ? asIso(prior.listingDate)! : null;
       return !listed || listed >= keyOf(addDays(instantToCivil(new Date()), -30));
@@ -251,7 +270,7 @@ export async function runSync(
         );
       }
 
-      await upsertIpo(prisma, adapter.name, merged, resolved, ctx, result, todayIso);
+      await upsertIpo(prisma, adapter.name, merged, resolved, ctx, result, todayIso, counted);
     }
   }
 
@@ -296,6 +315,7 @@ async function upsertIpo(
   ctx: RecomputeContext,
   result: SyncResult,
   todayIso: string,
+  counted: Set<string>,
 ) {
   const existing = await prisma.ipo.findUnique({
     where: { source_sourceRef: { source: sourceName, sourceRef: detail.sourceId } },
@@ -345,7 +365,10 @@ async function upsertIpo(
         sourceRef: detail.sourceId,
       } as never,
     });
-    result.rowsAdded++;
+    if (!counted.has(detail.sourceId)) {
+      counted.add(detail.sourceId);
+      result.rowsAdded++;
+    }
     const created = await prisma.ipo.findUnique({
       where: { source_sourceRef: { source: sourceName, sourceRef: detail.sourceId } },
       select: { id: true },
@@ -367,7 +390,10 @@ async function upsertIpo(
   }
 
   await prisma.ipo.update({ where: { id: existing.id }, data: data as never });
-  result.rowsUpdated++;
+  if (!counted.has(detail.sourceId)) {
+    counted.add(detail.sourceId);
+    result.rowsUpdated++;
+  }
 
   // Lock-in events depend on the allotment date, so recompute only when it moved.
   if (allotmentMoved) await recomputeLockinEvents(prisma, existing.id, ctx);
