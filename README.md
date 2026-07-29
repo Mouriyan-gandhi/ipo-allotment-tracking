@@ -123,11 +123,35 @@ endpoints block data-centre IPs and do not expose allotment dates in a usable fo
 the current dataset **51 of 52 IPOs carry a real basis-of-allotment date and none are
 estimated**.
 
-Two endpoints are used:
+Three endpoints are used, in this order:
 
-1. **List** — `webnodejs.chittorgarh.com/cloud/report/data-read/82/1/1/{year}/{fy}/0/{board}`
-   where `{board}` is `mainboard` or `sme` and must be the final path segment.
-2. **Detail** — the IPO page, whose Next.js RSC payload carries the full record.
+1. **Timetable list (primary)** —
+   `webnodejs.chittorgarh.com/cloud/report/data-read/118/1/1/{year}/{fy}/0/{board}?year={year}`
+   Report 118 carries `~Timetable_BOA_dt`, the basis-of-allotment date, for **every
+   IPO in one request**, and covers past years. This is what makes a multi-year
+   backfill tractable: 268 SME rows for 2025 arrive in a single call rather than 268
+   detail fetches.
+2. **IPO list** — `.../data-read/82/1/1/{year}/{fy}/0/{board}`
+   Adds symbol, ISIN, price and issue size, but has **no allotment date** and returns
+   almost nothing for past years.
+3. **Detail** — the IPO page, whose Next.js RSC payload carries anchor quantity and
+   value, registrar and the price band.
+
+`{board}` is `mainboard` or `sme` and must be the final path segment.
+
+Reports 118 and 82 describe the same IPOs with complementary columns, so rows are
+merged per IPO by **filling gaps rather than last-write-wins** — otherwise whichever
+report was fetched first would lose its fields.
+
+Sync therefore runs in two passes: first persist everything the listings already
+provide (which materialises lock-in dates without a single detail request), then
+spend the detail budget on enrichment only.
+
+> **Why this matters.** Before report 118 was used, SME pre-IPO unlocks only appeared
+> from December 2026 onward. SME pre-IPO lock-in runs 12 months from allotment, and
+> the database held no SME IPO allotted before December 2025 — so every SME pre-IPO
+> unlock between July and November 2026 was missing. The gap was absent source data,
+> not a date-engine bug.
 
 Adapters implement `IpoSourceAdapter` and are tried in priority order, so a broken
 source can be swapped or disabled without touching the app. Chittorgarh is flagged
