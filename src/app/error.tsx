@@ -29,7 +29,7 @@ export default function GlobalError({
   return (
     <main className="flex min-h-screen items-start justify-center p-6 sm:items-center">
       <div className="w-full max-w-xl rounded-lg border border-border bg-surface p-6">
-        <h1 className="text-base font-semibold text-red-300">
+        <h1 className="text-base font-semibold text-danger">
           {looksLikeDbOutage ? "Can’t reach the database" : "Something went wrong"}
         </h1>
 
@@ -80,7 +80,7 @@ export default function GlobalError({
 
         <button
           onClick={reset}
-          className="mt-4 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-black"
+          className="mt-4 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg"
         >
           Retry
         </button>

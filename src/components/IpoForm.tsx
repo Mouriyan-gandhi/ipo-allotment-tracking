@@ -120,7 +120,7 @@ export function IpoForm({ initial, onDone }: { initial?: IpoRow; onDone?: () => 
       </div>
 
       {error && (
-        <p role="alert" className="text-xs text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {error}
         </p>
       )}
@@ -129,7 +129,7 @@ export function IpoForm({ initial, onDone }: { initial?: IpoRow; onDone?: () => 
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-black disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg disabled:opacity-50"
         >
           {busy ? "Saving…" : initial ? "Save changes" : "Add IPO"}
         </button>
@@ -164,7 +164,7 @@ function Field({
     <label className="block">
       <span className="mb-1 block text-[11px] text-fg-muted">
         {label}
-        {required && <span className="ml-0.5 text-red-400">*</span>}
+        {required && <span className="ml-0.5 text-danger">*</span>}
       </span>
       {children}
       {hint && <span className="mt-0.5 block text-[10px] text-fg-dim">{hint}</span>}

@@ -45,7 +45,7 @@ export function SyncNowButton() {
         {state === "busy" ? "Syncing…" : "Sync now"}
       </button>
       {message && (
-        <span className={state === "error" ? "text-red-400" : "text-fg-dim"}>{message}</span>
+        <span className={state === "error" ? "text-danger" : "text-fg-dim"}>{message}</span>
       )}
     </span>
   );

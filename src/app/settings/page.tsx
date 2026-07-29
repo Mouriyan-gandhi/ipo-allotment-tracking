@@ -52,7 +52,7 @@ export default async function SettingsPage() {
                             <td className="py-1.5 pr-2">
                               {eventTypeMeta[t].short}
                               {eventTypeMeta[t].lowConfidence && (
-                                <span className="ml-1 text-amber-400" title="Verify against current SEBI ICDR">
+                                <span className="ml-1 text-warn" title="Verify against current SEBI ICDR">
                                   ⚠
                                 </span>
                               )}
@@ -73,7 +73,7 @@ export default async function SettingsPage() {
             })}
           </div>
 
-          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-warn">
             ⚠ Promoter lock-in uses an 18-month default that is <strong>not verified</strong>.
             Treat it as a starting point and check the current SEBI ICDR before relying on
             it. Anchor and pre-IPO durations reflect the rules the app was built against and

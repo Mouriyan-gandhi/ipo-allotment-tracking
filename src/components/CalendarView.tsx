@@ -8,11 +8,12 @@ import { fmtCr, fmtDate } from "@/lib/format";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// Text tones come from theme tokens so chips stay legible on white as well as dark.
 const EVENT_COLOURS: Record<LockinEventType, string> = {
-  ANCHOR_T1: "bg-sky-500/20 text-sky-300 border-sky-500/30",
-  ANCHOR_T2: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-  PRE_IPO: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  PROMOTER: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  ANCHOR_T1: "bg-ev-t1/15 text-ev-t1-fg border-ev-t1/30",
+  ANCHOR_T2: "bg-ev-t2/15 text-ev-t2-fg border-ev-t2/30",
+  PRE_IPO: "bg-ev-pre/15 text-ev-pre-fg border-ev-pre/30",
+  PROMOTER: "bg-ev-prom/15 text-ev-prom-fg border-ev-prom/30",
 };
 
 interface Chip {
@@ -136,7 +137,7 @@ export function CalendarView({ rows }: { rows: IpoRow[] }) {
               onClick={() => setBoard(b.key)}
               aria-pressed={board === b.key}
               className={`rounded px-2 py-1 text-xs transition-colors ${
-                board === b.key ? "bg-accent text-black" : "text-fg-muted hover:text-fg"
+                board === b.key ? "bg-accent text-accent-fg" : "text-fg-muted hover:text-fg"
               }`}
             >
               {b.label}

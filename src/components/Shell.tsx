@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSyncStatus, getUnreadNotificationCount } from "@/lib/queries";
 import { fmtRelative } from "@/lib/format";
 import { SyncNowButton } from "./SyncNowButton";
+import { ThemeToggle } from "./ThemeToggle";
 
 // Calendar is the landing view, so it leads and points at "/".
 const TABS = [
@@ -60,7 +61,7 @@ export async function Shell({
             <Link href="/notifications" className="relative hover:text-fg" aria-label="Notifications">
               Alerts
               {unread > 0 && (
-                <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-fg">
                   {unread}
                 </span>
               )}
@@ -69,6 +70,7 @@ export async function Shell({
               synced {fmtRelative(sync.lastSuccessAt)}
             </span>
             <SyncNowButton />
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -76,7 +78,7 @@ export async function Shell({
       {sync.isStale && (
         <div
           role="status"
-          className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-300"
+          className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-warn"
         >
           {sync.lastSuccessAt
             ? `Last successful sync was ${fmtRelative(sync.lastSuccessAt)} — data may be out of date.`

@@ -18,7 +18,7 @@ export default async function NotificationsPage() {
       <div className="mb-3 flex items-center gap-3">
         <h1 className="text-sm font-semibold">Alerts</h1>
         {unread > 0 && (
-          <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+          <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-fg">
             {unread} unread
           </span>
         )}

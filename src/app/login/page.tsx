@@ -55,7 +55,7 @@ function LoginForm() {
       />
 
       {error && (
-        <p role="alert" className="mt-3 text-sm text-red-400">
+        <p role="alert" className="mt-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -63,7 +63,7 @@ function LoginForm() {
       <button
         type="submit"
         disabled={busy || !password}
-        className="mt-4 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-black transition-opacity disabled:opacity-40"
+        className="mt-4 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg transition-opacity disabled:opacity-40"
       >
         {busy ? "Checking…" : "Sign in"}
       </button>

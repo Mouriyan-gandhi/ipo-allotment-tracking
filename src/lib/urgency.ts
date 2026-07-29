@@ -25,10 +25,14 @@ export function urgencyBucket(daysRemaining: number): UrgencyBucket {
 }
 
 // Tailwind class fragments per bucket, used by table cells / badges.
+//
+// These resolve through theme tokens (see globals.css) rather than fixed palette
+// steps: `text-red-300` is legible on the dark surface but washes out on white, so
+// each theme supplies its own tone behind the same utility name.
 export const urgencyClasses: Record<UrgencyBucket, { text: string; bg: string; dot: string }> = {
-  red: { text: "text-red-300", bg: "bg-red-500/15", dot: "bg-red-500" },
-  amber: { text: "text-amber-300", bg: "bg-amber-500/15", dot: "bg-amber-500" },
-  neutral: { text: "text-sky-300", bg: "bg-sky-500/10", dot: "bg-sky-500" },
-  muted: { text: "text-zinc-400", bg: "bg-zinc-500/10", dot: "bg-zinc-500" },
-  expired: { text: "text-zinc-600 line-through", bg: "bg-transparent", dot: "bg-zinc-700" },
+  red: { text: "text-urgent-red", bg: "bg-dot-red/15", dot: "bg-dot-red" },
+  amber: { text: "text-urgent-amber", bg: "bg-dot-amber/15", dot: "bg-dot-amber" },
+  neutral: { text: "text-urgent-neutral", bg: "bg-dot-neutral/10", dot: "bg-dot-neutral" },
+  muted: { text: "text-urgent-muted", bg: "bg-dot-muted/10", dot: "bg-dot-muted" },
+  expired: { text: "text-fg-dim line-through", bg: "bg-transparent", dot: "bg-dot-muted" },
 };

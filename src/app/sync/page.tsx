@@ -11,9 +11,9 @@ interface SyncErrors {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  SUCCESS: "bg-emerald-500/15 text-emerald-300",
-  PARTIAL: "bg-amber-500/15 text-amber-300",
-  FAILED: "bg-red-500/15 text-red-300",
+  SUCCESS: "bg-emerald-500/15 text-ok",
+  PARTIAL: "bg-amber-500/15 text-warn",
+  FAILED: "bg-red-500/15 text-danger",
 };
 
 export default async function SyncHistoryPage() {
@@ -49,9 +49,9 @@ export default async function SyncHistoryPage() {
                     {fmtRelative(run.startedAt.toISOString())} · {duration}
                   </span>
                   <span className="ml-auto text-xs tnum">
-                    <span className="text-emerald-400">+{run.rowsAdded}</span>{" "}
+                    <span className="text-ok">+{run.rowsAdded}</span>{" "}
                     <span className="text-fg-dim">new,</span>{" "}
-                    <span className="text-sky-400">{run.rowsUpdated}</span>{" "}
+                    <span className="text-info">{run.rowsUpdated}</span>{" "}
                     <span className="text-fg-dim">updated</span>
                   </span>
                 </div>
@@ -75,10 +75,10 @@ export default async function SyncHistoryPage() {
 
                 {!!detail.warnings?.length && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-xs text-amber-400/80 hover:text-amber-300">
+                    <summary className="cursor-pointer text-xs text-warn/80 hover:text-warn">
                       {detail.warnings.length} warning{detail.warnings.length === 1 ? "" : "s"}
                     </summary>
-                    <ul className="mt-1 space-y-0.5 text-xs text-amber-300/70">
+                    <ul className="mt-1 space-y-0.5 text-xs text-warn/70">
                       {detail.warnings.slice(0, 20).map((w, i) => (
                         <li key={i}>{w}</li>
                       ))}
@@ -88,10 +88,10 @@ export default async function SyncHistoryPage() {
 
                 {!!detail.errors?.length && (
                   <details className="mt-1" open>
-                    <summary className="cursor-pointer text-xs text-red-400/80 hover:text-red-300">
+                    <summary className="cursor-pointer text-xs text-danger/80 hover:text-danger">
                       {detail.errors.length} error{detail.errors.length === 1 ? "" : "s"}
                     </summary>
-                    <ul className="mt-1 space-y-0.5 text-xs text-red-300/70">
+                    <ul className="mt-1 space-y-0.5 text-xs text-danger/70">
                       {detail.errors.slice(0, 20).map((e, i) => (
                         <li key={i}>{e}</li>
                       ))}

@@ -88,7 +88,7 @@ export function IpoTable({ rows, title }: { rows: IpoRow[]; title: string }) {
               key={w}
               onClick={() => setHorizon(horizon === w ? null : w)}
               className={`rounded px-2 py-1 text-xs transition-colors ${
-                horizon === w ? "bg-accent text-black" : "text-fg-muted hover:text-fg"
+                horizon === w ? "bg-accent text-accent-fg" : "text-fg-muted hover:text-fg"
               }`}
             >
               {w}d
@@ -225,7 +225,7 @@ export function IpoTable({ rows, title }: { rows: IpoRow[]; title: string }) {
                             {r.allotmentDateSource === "ESTIMATED" && (
                               <span
                                 title="Estimated from listing date minus 2 business days — not an official basis-of-allotment date"
-                                className="cursor-help text-amber-400"
+                                className="cursor-help text-warn"
                                 aria-label="Estimated allotment date"
                               >
                                 ⚠
@@ -387,7 +387,7 @@ function RowDetail({ row }: { row: IpoRow }) {
                   <td className="py-1 pr-3">
                     {meta.label}
                     {meta.lowConfidence && (
-                      <span className="ml-1 text-amber-400" title="Verify against current SEBI ICDR">
+                      <span className="ml-1 text-warn" title="Verify against current SEBI ICDR">
                         ⚠
                       </span>
                     )}
