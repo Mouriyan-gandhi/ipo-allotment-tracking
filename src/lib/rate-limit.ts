@@ -1,16 +1,15 @@
 // ============================================================================
-//  Login throttling.
+//  Throttling for the expensive public routes.
 //
-//  The whole app is gated by one shared password, so the login route is the only
-//  thing standing between a public URL and the data. Without a limit, that password
-//  can be attacked at request speed.
+//  The app has no sign-in, so anything that costs real work — a scrape of
+//  Chittorgarh, a serverless invocation — is reachable by anyone with the URL and
+//  needs a ceiling of its own.
 //
 //  This is an in-process fixed window. On serverless each instance keeps its own
-//  counter, so a determined attacker spread across instances gets more attempts than
-//  the nominal limit — it raises the cost of brute force substantially without
-//  pretending to be a distributed limiter. A strong password is still the real
-//  defence; if this app ever holds anything sensitive, move to per-user accounts and
-//  a shared store (Redis/Postgres) for limiting.
+//  counter, so the effective limit across a scaled-out deployment is higher than the
+//  nominal one — it bounds runaway or accidental hammering without pretending to be
+//  a distributed limiter. If this ever needs a hard guarantee, move the counter to a
+//  shared store (Redis/Postgres).
 // ============================================================================
 
 interface Bucket {
@@ -48,20 +47,4 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
   const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
   if (bucket.count > limit) return { allowed: false, remaining: 0, retryAfter };
   return { allowed: true, remaining: limit - bucket.count, retryAfter };
-}
-
-/** Clear a key after a successful login so one user's typos don't lock them out. */
-export function resetRateLimit(key: string) {
-  buckets.delete(key);
-}
-
-/**
- * Best-effort client identity. Behind Vercel the left-most x-forwarded-for entry is
- * the real client; fall back to a constant so the limiter still applies globally
- * rather than silently allowing everything when no header is present.
- */
-export function clientKey(request: Request): string {
-  const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
 }

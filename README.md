@@ -28,7 +28,7 @@ npm run seed              # load real seed data + NSE holidays
 npm run dev               # http://localhost:3000
 ```
 
-Sign in with the value you set for `APP_PASSWORD`.
+No sign-in — the app opens straight onto the calendar.
 
 ### Commands
 
@@ -55,9 +55,7 @@ different clients read them, and they need different SSL settings**:
 | --- | --- | --- |
 | `DATABASE_URL` | app runtime (node-postgres) | Pooled, port 6543. Needs `sslmode=no-verify` — Supabase's pooler presents a self-signed chain, and `pg` treats `sslmode=require` as full verification, failing with `SELF_SIGNED_CERT_IN_CHAIN`. |
 | `DIRECT_URL` | Prisma CLI (Rust schema engine) | Session pooler, port 5432. Needs `sslmode=require`; **without any `sslmode` the schema engine hangs indefinitely** on its connectivity probe. |
-| `APP_PASSWORD` | login | The single shared password gating the whole app. |
-| `SESSION_SECRET` | session cookie | Signs the auth cookie. Rotating it logs you out. |
-| `CRON_SECRET` | `/api/cron/sync` | Bearer token Vercel Cron must send. |
+| `CRON_SECRET` | `/api/cron/sync` | Bearer token Vercel Cron must send. The only authenticated route; every page is public. |
 
 If your database password contains reserved URL characters (`#`, `@`, `/`, `?`, `&`),
 **URL-encode them** (`#` → `%23`) or authentication fails silently.
@@ -73,7 +71,6 @@ src/lib/lockin-service.ts The only writer of LockinEvent rows
 src/lib/sources/          Pluggable IpoSourceAdapter implementations
 src/lib/sync.ts           Ingestion: fallback, change detection, validation
 src/lib/notifications.ts  NotificationChannel abstraction (in-app + email stub)
-src/proxy.ts              Auth gate (Next 16 renamed `middleware` to `proxy`)
 ```
 
 ### Lock-in rules are data, not code
@@ -250,8 +247,8 @@ compute than a serverless function allows.
 ## Deploying to Vercel
 
 1. Push the repo to GitHub and import it into Vercel.
-2. Add `DATABASE_URL`, `DIRECT_URL`, `APP_PASSWORD`, `SESSION_SECRET` and `CRON_SECRET`
-   as environment variables. **Change `APP_PASSWORD` from the local value.**
+2. Add `DATABASE_URL`, `DIRECT_URL` and `CRON_SECRET` as environment variables.
+   **The deployed URL is public — anyone with the link can read *and* edit the data.**
 3. Deploy. The cron job registers automatically from `vercel.json`.
 
 > **Expect scraping from Vercel to be less reliable than from your own machine.**
@@ -267,8 +264,9 @@ compute than a serverless function allows.
 
 Chosen deliberately, and all editable:
 
-1. **Single user, no accounts.** One shared password in `APP_PASSWORD`, checked by
-   `src/proxy.ts` against an HMAC-signed cookie.
+1. **Public, no accounts.** There is no sign-in: anyone with the URL sees the data,
+   and can also use `/add`, `/edit` and "Sync now". `/api/sync` is throttled globally
+   (3 runs / 10 min) since it costs a scrape; `/api/cron/sync` needs `CRON_SECRET`.
 2. **CMP is out of scope for v1.** The column exists and always renders "—". The seam
    for a future price feed is `fetchCmp(symbol)` in `src/lib/cmp.ts`; no price is ever
    fabricated or estimated.
@@ -296,5 +294,4 @@ Deviations from the original specification, and why:
   upcoming unlocks. Storing a placeholder would be fabricated data, so sync identity is
   `(source, sourceRef)`. `@@unique([symbol, board])` is kept for rows that do have a
   symbol; Postgres allows repeated NULLs in a unique index.
-- **`middleware.ts` is now `proxy.ts`** (Next.js 16 rename).
 - **SQLite is not supported.** The schema relies on Postgres arrays, enums and JSON.

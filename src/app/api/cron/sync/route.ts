@@ -11,8 +11,9 @@ export const maxDuration = 60;
 /**
  * Daily scheduled ingestion. Called by Vercel Cron at 02:30 UTC (08:00 IST).
  *
- * proxy.ts lets /api/cron through without a session, so this route must
- * authenticate itself: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
+ * The app has no sign-in, so this route authenticates itself rather than relying on
+ * any app-wide gate: Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Without
+ * it, anyone could put the scrape on a schedule.
  */
 function authorise(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
